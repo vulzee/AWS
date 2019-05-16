@@ -1,0 +1,23 @@
+﻿@model AWS.OCR.Data.Ocr.OcrElement
+@{
+    ViewData["Title"] = "Edit " + Model.ImageFilename;
+}
+<h2>@ViewData["Title"]</h2>
+<h3>@ViewData["Message"]</h3>
+
+@if (ViewBag.ResultMessage != null)
+{
+    <h4>@ViewBag.ResultMessage</h4>
+}
+
+
+<script src="http://js.nicedit.com/nicEdit-latest.js" type="text/javascript"></script>
+<script type="text/javascript">bkLib.onDomLoaded(nicEditors.allTextAreas);</script>
+
+<div>
+    <form asp-controller="Ocr" asp-action="Edit" method="post">
+        <textarea asp-for="OcrText" style="width: 600px; height: 300px;"></textarea>
+        <button type="submit">Save</button>
+    </form>
+</div>
+

@@ -13,7 +13,6 @@ namespace AWS.OCR.Data.Ocr
         public string ImageFileContentType { get; set; }
         public string ImageFilenamePath { get; set; }
 
-       // [AllowHtml]
         [UIHint("tinymce_jquery_full")]
         public string OcrText { get; set; }
         public string UserId { get; set; }

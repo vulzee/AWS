@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Http;
 using System.IO;
 using Microsoft.AspNetCore.Identity;
 using AWS.OCR.Data;
+using AWS.OCR.Data.Ocr;
 
 namespace AWS.OCR.Controllers
 {
@@ -33,6 +34,7 @@ namespace AWS.OCR.Controllers
         public IActionResult History()
         {
             ViewData["Message"] = "History of your recognitions.";
+            ViewData["ResultMessage"] = TempData["ResultMessage"]?.ToString();
             var userId = userManager.GetUserId(HttpContext.User);
             var result = dbContext.OcrElements.Where(x => x.UserId == userId).ToList();
 
@@ -76,7 +78,7 @@ namespace AWS.OCR.Controllers
             var userId = userManager.GetUserId(HttpContext.User);
             var result = dbContext.OcrElements.Where(x => x.UserId == userId && x.Id == id).FirstOrDefault();
 
-            if(result == null)
+            if (result == null)
                 return Content("File not found");
 
             var memory = new MemoryStream();
@@ -99,15 +101,14 @@ namespace AWS.OCR.Controllers
 
             if (result == null)
                 return Content("File not found");
-            
+
             var memory = new MemoryStream();
-            using (var stream = new StreamWriter(memory))
-            {
-                await stream.WriteAsync(result.OcrText);
-                await stream.FlushAsync();
-            }
+            var stream = new StreamWriter(memory);
+            await stream.WriteAsync(result.OcrText);
+            await stream.FlushAsync();
             memory.Position = 0;
-            return File(memory, "text/plain", Path.ChangeExtension(result.ImageFilename, "txt"));
+
+            return File(memory, "text/html", Path.ChangeExtension(result.ImageFilename, "html"));
         }
 
         public async Task<IActionResult> Delete(int id)
@@ -115,7 +116,7 @@ namespace AWS.OCR.Controllers
 
             if (id == 0)
             {
-                ViewBag.ResultMessage = "File not found";
+                TempData["ResultMessage"] = "File not found";
                 return RedirectToAction("History");
             }
 
@@ -124,33 +125,63 @@ namespace AWS.OCR.Controllers
 
             if (result == null)
             {
-                ViewBag.ResultMessage = "File not found";
+                TempData["ResultMessage"] = "File not found";
                 return RedirectToAction("History");
             }
 
+            System.IO.File.Delete(result.ImageFilenamePath);
             dbContext.OcrElements.Remove(result);
             await dbContext.SaveChangesAsync();
 
-            ViewBag.ResultMessage = "File removed succesfully.";
+            TempData["ResultMessage"] = "File removed succesfully.";
             return RedirectToAction("History");
         }
 
-        public async Task<IActionResult> Edit(int id)
+        public IActionResult Edit(int id)
         {
 
-            //if (id == 0)
-            //    return Content("File not found");
+            if (id == 0)
+            {
+                TempData["ResultMessage"] = "File not found";
+                return RedirectToAction("History");
+            }
 
-            //var userId = userManager.GetUserId(HttpContext.User);
-            //var result = dbContext.OcrElements.Where(x => x.UserId == userId && x.Id == id).FirstOrDefault();
+            var userId = userManager.GetUserId(HttpContext.User);
+            var result = dbContext.OcrElements.Where(x => x.UserId == userId && x.Id == id).FirstOrDefault();
 
-            //if (result == null)
-            //    return Content("File not found");
+            if (result == null)
+            {
+                TempData["ResultMessage"] = "File not found";
+                return RedirectToAction("History");
+            }
 
-            //dbContext.OcrElements.Update(result);
-            //await dbContext.SaveChangesAsync();
+            return View(result);
+        }
 
-            return Content("File saved succesfully.");
+        [HttpPost]
+        public async Task<IActionResult> Edit(int id, OcrElement input)
+        {
+            if (id == 0)
+            {
+                TempData["ResultMessage"] = "File not found";
+                return RedirectToAction("History");
+            }
+
+            var userId = userManager.GetUserId(HttpContext.User);
+            var result = dbContext.OcrElements.Where(x => x.UserId == userId && x.Id == id).FirstOrDefault();
+
+            if (result == null)
+            {
+                TempData["ResultMessage"] = "File not found";
+                return RedirectToAction("History");
+            }
+
+            result.OcrText = input.OcrText;
+            dbContext.OcrElements.Update(result);
+            await dbContext.SaveChangesAsync();
+
+            TempData["ResultMessage"] = "Success";
+            return RedirectToAction("History");
         }
     }
 }
