@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.168
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AWS.OCR", "AWS.OCR\AWS.OCR.csproj", "{281D7A81-AE5D-4206-8124-49346280658E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{281D7A81-AE5D-4206-8124-49346280658E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{281D7A81-AE5D-4206-8124-49346280658E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{281D7A81-AE5D-4206-8124-49346280658E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{281D7A81-AE5D-4206-8124-49346280658E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {6FD84765-1294-42A6-9ABA-6A4E1D2AFA36}
+	EndGlobalSection
+EndGlobal

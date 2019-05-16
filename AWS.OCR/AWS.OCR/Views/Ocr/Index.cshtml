@@ -1,0 +1,12 @@
+﻿@{
+    ViewData["Title"] = "OCR";
+}
+<h2>@ViewData["Title"]</h2>
+<h3>@ViewData["Message"]</h3>
+
+<form asp-controller="Ocr" asp-action="UploadFile" method="post"
+      enctype="multipart/form-data">
+
+    <input type="file" name="file" />
+    <button type="submit">Upload File</button>
+</form>
