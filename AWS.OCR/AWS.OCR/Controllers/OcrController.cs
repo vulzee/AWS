@@ -11,6 +11,12 @@ using System.IO;
 using Microsoft.AspNetCore.Identity;
 using AWS.OCR.Data;
 using AWS.OCR.Data.Ocr;
+using Amazon.Lambda;
+using Amazon;
+using Amazon.Lambda.Model;
+using Newtonsoft.Json;
+using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json.Serialization;
 
 namespace AWS.OCR.Controllers
 {
@@ -19,12 +25,14 @@ namespace AWS.OCR.Controllers
     {
         private readonly UserManager<IdentityUser> userManager;
         private readonly ApplicationDbContext dbContext;
+		private AmazonLambdaClient awsLambdaClient;
 
-        public OcrController(UserManager<IdentityUser> userManager, ApplicationDbContext dbContext)
+		public OcrController(UserManager<IdentityUser> userManager, ApplicationDbContext dbContext, IConfiguration config)
         {
             this.userManager = userManager;
             this.dbContext = dbContext;
-        }
+			this.awsLambdaClient = this.CreateAwsLambdaClient(config);
+		}
 
         public IActionResult Index()
         {
@@ -56,12 +64,14 @@ namespace AWS.OCR.Controllers
                 await file.CopyToAsync(stream);
             }
 
-            await dbContext.OcrElements.AddAsync(new Data.Ocr.OcrElement
+			var text = await this.Recognize(file);	
+
+			await dbContext.OcrElements.AddAsync(new Data.Ocr.OcrElement
             {
                 ImageFileContentType = file.ContentType,
                 ImageFilename = file.FileName,
                 ImageFilenamePath = path,
-                OcrText = "tekst",
+                OcrText = text,
                 UserId = userId,
             });
             await dbContext.SaveChangesAsync();
@@ -183,5 +193,64 @@ namespace AWS.OCR.Controllers
             TempData["ResultMessage"] = "Success";
             return RedirectToAction("History");
         }
+
+		private AmazonLambdaClient CreateAwsLambdaClient(IConfiguration config)
+		{
+			var awsaccessKeyID = config.GetValue<string>("awsaccessKeyID", null);
+			var awsSecreteAccessKey = config.GetValue<string>("awsSecreteAccessKey", null);
+			var region = RegionEndpoint.GetBySystemName(config.GetValue<string>("awsRegion", null));
+			var token = config.GetValue<string>("awsToken", null);
+
+			return new AmazonLambdaClient(awsaccessKeyID, awsSecreteAccessKey, token, region);
+		}
+
+		private string ConvertImageToBase64(IFormFile file)
+		{
+			using (var ms = new MemoryStream())
+			{
+				file.CopyTo(ms);
+				var fileBytes = ms.ToArray();
+				return Convert.ToBase64String(fileBytes);
+			}
+		}
+
+		private async Task<string> Recognize(IFormFile file)
+		{
+			var lambdaRequest = new OcrLambdaRequest(this.ConvertImageToBase64(file));
+
+			var payload = JsonConvert.SerializeObject(lambdaRequest, new JsonSerializerSettings
+			{
+				ContractResolver = new DefaultContractResolver
+				{
+					NamingStrategy = new CamelCaseNamingStrategy()
+				}
+			});
+
+			InvokeRequest ir = new InvokeRequest
+			{
+				FunctionName = "x1",
+				InvocationType = InvocationType.RequestResponse,
+				Payload = payload
+			};
+
+			InvokeResponse response = await this.awsLambdaClient.InvokeAsync(ir);
+
+			using (var sr = new StreamReader(response.Payload))
+			{
+				JsonReader reader = new JsonTextReader(sr);
+				var serilizer = new JsonSerializer();
+				var op = serilizer.Deserialize(reader);
+				var text = op as string;
+				//TODO add proper error handling
+				if(text != null)
+				{
+					return text;
+				}
+				else
+				{
+					throw new Exception("Something went wrong!");
+				}
+			}
+		}
     }
 }

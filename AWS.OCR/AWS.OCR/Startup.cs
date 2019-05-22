@@ -35,9 +35,9 @@ namespace AWS.OCR
             });
 
             services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseInMemoryDatabase("AWS_OCR"));
-                //options.UseSqlServer(
-                //    Configuration.GetConnectionString("DefaultConnection")));
+                //options.UseInMemoryDatabase("AWS_OCR"));
+                options.UseSqlServer(
+                    Configuration.GetConnectionString("DefaultConnection")));
             services.AddDefaultIdentity<IdentityUser>()
                 .AddEntityFrameworkStores<ApplicationDbContext>();
 
