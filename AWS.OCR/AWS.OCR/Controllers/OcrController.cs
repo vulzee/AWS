@@ -1,10 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using AWS.OCR.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using System.IO;
@@ -17,22 +14,28 @@ using Amazon.Lambda.Model;
 using Newtonsoft.Json;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json.Serialization;
+using Amazon.S3;
+using Amazon.S3.Transfer;
 
 namespace AWS.OCR.Controllers
 {
     [Authorize]
-    public class OcrController : Controller
+    public class OcrController : Controller, IDisposable
     {
         private readonly UserManager<IdentityUser> userManager;
         private readonly ApplicationDbContext dbContext;
-		private AmazonLambdaClient awsLambdaClient;
+        private readonly IConfiguration config;
+        private AmazonLambdaClient awsLambdaClient;
+        private AmazonS3Client awsS3Client;
+        private TransferUtility fileTransferUtility;
 
-		public OcrController(UserManager<IdentityUser> userManager, ApplicationDbContext dbContext, IConfiguration config)
+        public OcrController(UserManager<IdentityUser> userManager, ApplicationDbContext dbContext, IConfiguration config)
         {
             this.userManager = userManager;
             this.dbContext = dbContext;
-			this.awsLambdaClient = this.CreateAwsLambdaClient(config);
-		}
+            this.config = config;
+			this.InitializeAwsServices(config);
+        }
 
         public IActionResult Index()
         {
@@ -55,22 +58,26 @@ namespace AWS.OCR.Controllers
             if (file == null || file.Length == 0)
                 return Content("file not selected");
 
-            var path = Path.Combine(
-                        Directory.GetCurrentDirectory(), "wwwroot",
-                        file.FileName);
             var userId = userManager.GetUserId(HttpContext.User);
-            using (var stream = new FileStream(path, FileMode.Create))
+            var fileKey = $"{userId}_{file.FileName}";
+            using (var stream = file.OpenReadStream())
             {
-                await file.CopyToAsync(stream);
+                var uploadRequest = new TransferUtilityUploadRequest
+                {
+                    InputStream = stream,
+                    Key = fileKey,
+                    BucketName = config.GetValue<string>("s3BucketName", null),
+                };
+                await fileTransferUtility.UploadAsync(uploadRequest);
             }
 
-			var text = await this.Recognize(file);	
+            var text = await this.Recognize(file);	
 
 			await dbContext.OcrElements.AddAsync(new Data.Ocr.OcrElement
             {
                 ImageFileContentType = file.ContentType,
                 ImageFilename = file.FileName,
-                ImageFilenamePath = path,
+                ImageFilenamePath = fileKey,
                 OcrText = text,
                 UserId = userId,
             });
@@ -92,11 +99,17 @@ namespace AWS.OCR.Controllers
                 return Content("File not found");
 
             var memory = new MemoryStream();
-            using (var stream = new FileStream(result.ImageFilenamePath, FileMode.Open))
+            var downloadRequest = new TransferUtilityOpenStreamRequest
+            {
+                Key = result.ImageFilenamePath,
+                BucketName = config.GetValue<string>("s3BucketName", null),
+            };
+            using (var stream = fileTransferUtility.OpenStream(downloadRequest))
             {
                 await stream.CopyToAsync(memory);
             }
             memory.Position = 0;
+
             return File(memory, result.ImageFileContentType, result.ImageFilename);
         }
 
@@ -139,12 +152,17 @@ namespace AWS.OCR.Controllers
                 return RedirectToAction("History");
             }
 
-            System.IO.File.Delete(result.ImageFilenamePath);
-            dbContext.OcrElements.Remove(result);
-            await dbContext.SaveChangesAsync();
+            var response = await awsS3Client.DeleteObjectAsync(config.GetValue<string>("s3BucketName", null), result.ImageFilenamePath);
+            if(response.HttpStatusCode == System.Net.HttpStatusCode.OK)
+            {
+                dbContext.OcrElements.Remove(result);
+                await dbContext.SaveChangesAsync();
+                TempData["ResultMessage"] = "File removed succesfully.";
+                return RedirectToAction("History");
+            }
 
-            TempData["ResultMessage"] = "File removed succesfully.";
-            return RedirectToAction("History");
+            TempData["ResultMessage"] = "Error during file remove request.";
+            return RedirectToAction("History");           
         }
 
         public IActionResult Edit(int id)
@@ -194,14 +212,16 @@ namespace AWS.OCR.Controllers
             return RedirectToAction("History");
         }
 
-		private AmazonLambdaClient CreateAwsLambdaClient(IConfiguration config)
+		private void InitializeAwsServices(IConfiguration config)
 		{
 			var awsaccessKeyID = config.GetValue<string>("awsaccessKeyID", null);
 			var awsSecreteAccessKey = config.GetValue<string>("awsSecreteAccessKey", null);
 			var region = RegionEndpoint.GetBySystemName(config.GetValue<string>("awsRegion", null));
 			var token = config.GetValue<string>("awsToken", null);
 
-			return new AmazonLambdaClient(awsaccessKeyID, awsSecreteAccessKey, token, region);
+            this.awsS3Client = new AmazonS3Client(awsaccessKeyID, awsSecreteAccessKey, token, region);
+            this.fileTransferUtility = new TransferUtility(awsS3Client);
+            this.awsLambdaClient = new AmazonLambdaClient(awsaccessKeyID, awsSecreteAccessKey, token, region);
 		}
 
 		private string ConvertImageToBase64(IFormFile file)
@@ -252,5 +272,13 @@ namespace AWS.OCR.Controllers
 				}
 			}
 		}
+
+        protected override void Dispose(bool disposing)
+        {
+            base.Dispose(disposing);
+            awsLambdaClient.Dispose();
+            fileTransferUtility.Dispose();
+            awsS3Client.Dispose();
+        }
     }
 }
