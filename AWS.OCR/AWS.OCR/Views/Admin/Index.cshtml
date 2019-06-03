@@ -1,0 +1,30 @@
+﻿@model AWS.OCR.AwsAccessSetter
+@{
+    ViewData["Title"] = "Admin Panel";
+}
+<h2>@ViewData["Title"]</h2>
+
+<div>
+    @if ((bool?)ViewData["password"] == true)
+    {
+    <form asp-controller="Admin" asp-action="UpdateTokens" method="post">
+        <label asp-for="AwsAccessKeyID">AwsAccessKeyID</label>
+        <input asp-for="AwsAccessKeyID" style="width: 400px; height: 30px;" /> <br />
+        <label asp-for="AwsSecreteAccessKey">AwsSecreteAccessKey</label>
+        <input asp-for="AwsSecreteAccessKey" style="width: 400px; height: 30px;" /> <br />
+        <label asp-for="Token">Token</label>
+        <input asp-for="Token" style="width: 400px; height: 30px;" /> <br />
+        <button type="submit">Save</button>
+    </form>
+    }
+    else
+    {
+        <form method="POST">
+            <label for="pass">Password</label>
+            <input type="password" id="pass" name="pass" />
+            <input type="submit" />
+        </form>
+    }
+
+</div>
+

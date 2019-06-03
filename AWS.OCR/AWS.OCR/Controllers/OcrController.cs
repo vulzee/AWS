@@ -12,7 +12,6 @@ using Amazon.Lambda;
 using Amazon;
 using Amazon.Lambda.Model;
 using Newtonsoft.Json;
-using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json.Serialization;
 using Amazon.S3;
 using Amazon.S3.Transfer;
@@ -24,17 +23,15 @@ namespace AWS.OCR.Controllers
     {
         private readonly UserManager<IdentityUser> userManager;
         private readonly ApplicationDbContext dbContext;
-        private readonly IConfiguration config;
         private AmazonLambdaClient awsLambdaClient;
         private AmazonS3Client awsS3Client;
         private TransferUtility fileTransferUtility;
 
-        public OcrController(UserManager<IdentityUser> userManager, ApplicationDbContext dbContext, IConfiguration config)
+        public OcrController(UserManager<IdentityUser> userManager, ApplicationDbContext dbContext)
         {
             this.userManager = userManager;
             this.dbContext = dbContext;
-            this.config = config;
-			this.InitializeAwsServices(config);
+			this.InitializeAwsServices();
         }
 
         public IActionResult Index()
@@ -66,7 +63,7 @@ namespace AWS.OCR.Controllers
                 {
                     InputStream = stream,
                     Key = fileKey,
-                    BucketName = config.GetValue<string>("s3BucketName", null),
+                    BucketName = AwsAccess.S3BucketName,
                 };
                 await fileTransferUtility.UploadAsync(uploadRequest);
             }
@@ -102,7 +99,7 @@ namespace AWS.OCR.Controllers
             var downloadRequest = new TransferUtilityOpenStreamRequest
             {
                 Key = result.ImageFilenamePath,
-                BucketName = config.GetValue<string>("s3BucketName", null),
+                BucketName = AwsAccess.S3BucketName,
             };
             using (var stream = fileTransferUtility.OpenStream(downloadRequest))
             {
@@ -152,7 +149,7 @@ namespace AWS.OCR.Controllers
                 return RedirectToAction("History");
             }
 
-            var response = await awsS3Client.DeleteObjectAsync(config.GetValue<string>("s3BucketName", null), result.ImageFilenamePath);
+            var response = await awsS3Client.DeleteObjectAsync(AwsAccess.S3BucketName, result.ImageFilenamePath);
             if(response.HttpStatusCode == System.Net.HttpStatusCode.OK)
             {
                 dbContext.OcrElements.Remove(result);
@@ -212,16 +209,13 @@ namespace AWS.OCR.Controllers
             return RedirectToAction("History");
         }
 
-		private void InitializeAwsServices(IConfiguration config)
+		private void InitializeAwsServices()
 		{
-			var awsaccessKeyID = config.GetValue<string>("awsaccessKeyID", null);
-			var awsSecreteAccessKey = config.GetValue<string>("awsSecreteAccessKey", null);
-			var region = RegionEndpoint.GetBySystemName(config.GetValue<string>("awsRegion", null));
-			var token = config.GetValue<string>("awsToken", null);
+			var region = RegionEndpoint.GetBySystemName(AwsAccess.Region);
 
-            this.awsS3Client = new AmazonS3Client(awsaccessKeyID, awsSecreteAccessKey, token, region);
+            this.awsS3Client = new AmazonS3Client(AwsAccess.AwsAccessKeyID, AwsAccess.AwsSecreteAccessKey, AwsAccess.Token, region);
             this.fileTransferUtility = new TransferUtility(awsS3Client);
-            this.awsLambdaClient = new AmazonLambdaClient(awsaccessKeyID, awsSecreteAccessKey, token, region);
+            this.awsLambdaClient = new AmazonLambdaClient(AwsAccess.AwsAccessKeyID, AwsAccess.AwsSecreteAccessKey, AwsAccess.Token, region);
 		}
 
 		private string ConvertImageToBase64(IFormFile file)

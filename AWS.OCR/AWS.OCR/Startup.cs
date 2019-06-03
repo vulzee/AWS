@@ -35,9 +35,9 @@ namespace AWS.OCR
             });
 
             services.AddDbContext<ApplicationDbContext>(options =>
-                //options.UseInMemoryDatabase("AWS_OCR"));
-                options.UseSqlServer(
-                    Configuration.GetConnectionString("DefaultConnection")));
+                options.UseInMemoryDatabase("AWS_OCR"));
+                //options.UseSqlServer(
+                //    Configuration.GetConnectionString("DefaultConnection")));
             services.AddDefaultIdentity<IdentityUser>()
                 .AddEntityFrameworkStores<ApplicationDbContext>();
 
@@ -70,6 +70,12 @@ namespace AWS.OCR
                     name: "default",
                     template: "{controller=Home}/{action=Index}/{id?}");
             });
+
+            AwsAccess.AwsAccessKeyID = Configuration.GetValue<string>("awsaccessKeyID", null);
+            AwsAccess.AwsSecreteAccessKey = Configuration.GetValue<string>("awsSecreteAccessKey", null);
+            AwsAccess.Region = Configuration.GetValue<string>("awsRegion", null);
+            AwsAccess.Token = Configuration.GetValue<string>("awsToken", null);
+            AwsAccess.S3BucketName = Configuration.GetValue<string>("s3BucketName", null);
         }
     }
 }
