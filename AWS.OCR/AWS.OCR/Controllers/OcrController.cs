@@ -23,6 +23,7 @@ namespace AWS.OCR.Controllers
     {
         private readonly UserManager<IdentityUser> userManager;
         private readonly ApplicationDbContext dbContext;
+        private readonly AwsAccess _awsAccess;
         private AmazonLambdaClient awsLambdaClient;
         private AmazonS3Client awsS3Client;
         private TransferUtility fileTransferUtility;
@@ -31,6 +32,7 @@ namespace AWS.OCR.Controllers
         {
             this.userManager = userManager;
             this.dbContext = dbContext;
+            _awsAccess = dbContext.AwsAccesses.FirstOrDefault();
 			this.InitializeAwsServices();
         }
 
@@ -63,7 +65,7 @@ namespace AWS.OCR.Controllers
                 {
                     InputStream = stream,
                     Key = fileKey,
-                    BucketName = AwsAccess.S3BucketName,
+                    BucketName = _awsAccess.S3BucketName,
                 };
                 await fileTransferUtility.UploadAsync(uploadRequest);
             }
@@ -99,7 +101,7 @@ namespace AWS.OCR.Controllers
             var downloadRequest = new TransferUtilityOpenStreamRequest
             {
                 Key = result.ImageFilenamePath,
-                BucketName = AwsAccess.S3BucketName,
+                BucketName = _awsAccess.S3BucketName,
             };
             using (var stream = fileTransferUtility.OpenStream(downloadRequest))
             {
@@ -149,7 +151,7 @@ namespace AWS.OCR.Controllers
                 return RedirectToAction("History");
             }
 
-            var response = await awsS3Client.DeleteObjectAsync(AwsAccess.S3BucketName, result.ImageFilenamePath);
+            var response = await awsS3Client.DeleteObjectAsync(_awsAccess.S3BucketName, result.ImageFilenamePath);
             if(response.HttpStatusCode == System.Net.HttpStatusCode.OK)
             {
                 dbContext.OcrElements.Remove(result);
@@ -211,11 +213,11 @@ namespace AWS.OCR.Controllers
 
 		private void InitializeAwsServices()
 		{
-			var region = RegionEndpoint.GetBySystemName(AwsAccess.Region);
+			var region = RegionEndpoint.GetBySystemName(_awsAccess.Region);
 
-            this.awsS3Client = new AmazonS3Client(AwsAccess.AwsAccessKeyID, AwsAccess.AwsSecreteAccessKey, AwsAccess.Token, region);
+            this.awsS3Client = new AmazonS3Client(_awsAccess.AwsAccessKeyID, _awsAccess.AwsSecreteAccessKey, _awsAccess.Token, region);
             this.fileTransferUtility = new TransferUtility(awsS3Client);
-            this.awsLambdaClient = new AmazonLambdaClient(AwsAccess.AwsAccessKeyID, AwsAccess.AwsSecreteAccessKey, AwsAccess.Token, region);
+            this.awsLambdaClient = new AmazonLambdaClient(_awsAccess.AwsAccessKeyID, _awsAccess.AwsSecreteAccessKey, _awsAccess.Token, region);
 		}
 
 		private string ConvertImageToBase64(IFormFile file)

@@ -35,13 +35,38 @@ namespace AWS.OCR
             });
 
             services.AddDbContext<ApplicationDbContext>(options =>
-                //options.UseInMemoryDatabase("AWS_OCR"));
-            options.UseSqlServer(
-                Configuration.GetConnectionString("DefaultConnection")));
+              //  options.UseInMemoryDatabase("AWS_OCR"));
+                options.UseSqlServer(
+                    Configuration.GetConnectionString("DefaultConnection")));
             services.AddDefaultIdentity<IdentityUser>()
                 .AddEntityFrameworkStores<ApplicationDbContext>();
 
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
+
+           
+            var provider = services.BuildServiceProvider();
+            var dbContext = provider.GetService<ApplicationDbContext>();
+            var awsAccess = dbContext.AwsAccesses.FirstOrDefault();
+            if(awsAccess == null)
+            {
+                awsAccess = new AwsAccess
+                {
+                    AwsAccessKeyID = Configuration.GetValue<string>("awsaccessKeyID", null),
+                    AwsSecreteAccessKey = Configuration.GetValue<string>("awsSecreteAccessKey", null),
+                    Region = Configuration.GetValue<string>("awsRegion", null),
+                    Token = Configuration.GetValue<string>("awsToken", null),
+                    S3BucketName = Configuration.GetValue<string>("s3BucketName", null),
+                };
+                dbContext.Add(awsAccess);
+            }
+            else
+            {
+                awsAccess.AwsAccessKeyID = Configuration.GetValue<string>("awsaccessKeyID", null);
+                awsAccess.AwsSecreteAccessKey = Configuration.GetValue<string>("awsSecreteAccessKey", null);
+                awsAccess.Token = Configuration.GetValue<string>("awsToken", null);
+                dbContext.Update(awsAccess);
+            }
+            dbContext.SaveChanges();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -58,7 +83,7 @@ namespace AWS.OCR
                 app.UseHsts();
             }
 
-           // app.UseHttpsRedirection();
+            // app.UseHttpsRedirection();
             app.UseStaticFiles();
             app.UseCookiePolicy();
 
@@ -70,12 +95,6 @@ namespace AWS.OCR
                     name: "default",
                     template: "{controller=Home}/{action=Index}/{id?}");
             });
-
-            AwsAccess.AwsAccessKeyID = Configuration.GetValue<string>("awsaccessKeyID", null);
-            AwsAccess.AwsSecreteAccessKey = Configuration.GetValue<string>("awsSecreteAccessKey", null);
-            AwsAccess.Region = Configuration.GetValue<string>("awsRegion", null);
-            AwsAccess.Token = Configuration.GetValue<string>("awsToken", null);
-            AwsAccess.S3BucketName = Configuration.GetValue<string>("s3BucketName", null);
         }
     }
 }

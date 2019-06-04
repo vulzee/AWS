@@ -137,6 +137,26 @@ namespace AWS.OCR.Data.Migrations
 
                 b.ToTable("OcrElements");
             });
+
+            modelBuilder.Entity("AWS.OCR.Data.Ocr.AwsAccess", b =>
+            {
+                b.Property<int>("Id")
+                    .ValueGeneratedOnAdd();
+
+                b.Property<string>("AwsAccessKeyID");
+
+                b.Property<string>("AwsSecreteAccessKey");
+
+                b.Property<string>("Region");
+
+                b.Property<string>("Token");
+
+                b.Property<string>("S3BucketName");
+
+                b.HasKey("Id");
+
+                b.ToTable("AwsAccesses");
+            });
             /////
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>

@@ -11,6 +11,8 @@ namespace AWS.OCR.Data
     {
         public DbSet<OcrElement> OcrElements { get; set; }
 
+        public DbSet<AwsAccess> AwsAccesses { get; set; }
+
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
         {

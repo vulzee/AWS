@@ -182,6 +182,23 @@ namespace AWS.OCR.Data.Migrations
                 name: "IX_OcrElements_UserId",
                 table: "OcrElements",
                 column: "UserId");
+
+            migrationBuilder.CreateTable(
+               name: "AwsAccesses",
+               columns: table => new
+               {
+                   Id = table.Column<int>(nullable: false)
+                       .Annotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn),
+                   AwsAccessKeyID  = table.Column<string>(maxLength: 256, nullable: false),
+                   AwsSecreteAccessKey = table.Column<string>(maxLength: 256, nullable: false),
+                   Region = table.Column<string>(maxLength: 256, nullable: false),
+                   Token = table.Column<string>(maxLength: 256, nullable: false),
+                   S3BucketName = table.Column<string>(maxLength: 256, nullable: false)
+               },
+               constraints: table =>
+               {
+                   table.PrimaryKey("PK_AwsAccesses", x => x.Id);
+               });
             /////////
 
             migrationBuilder.CreateIndex(
@@ -250,6 +267,9 @@ namespace AWS.OCR.Data.Migrations
             // my own
             migrationBuilder.DropTable(
                 name: "OcrElements");
+
+            migrationBuilder.DropTable(
+               name: "AwsAccesses");
         }
     }
 }

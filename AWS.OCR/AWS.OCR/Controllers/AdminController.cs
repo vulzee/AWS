@@ -1,10 +1,19 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using AWS.OCR.Data;
+using Microsoft.AspNetCore.Mvc;
+using System.Threading.Tasks;
+using System.Linq;
 
 namespace AWS.OCR.Controllers
 {
     public class AdminController : Controller
     {
         private string password = "zaq1@WSX";
+        private readonly ApplicationDbContext _dbContext;
+
+        public AdminController(ApplicationDbContext dbContext)
+        {
+            _dbContext = dbContext;
+        }
 
         [HttpGet]
         [Route("/it/is/panel")]
@@ -23,13 +32,24 @@ namespace AWS.OCR.Controllers
         }
 
         [HttpPost]
-       // [Route("/Admin/UpdateTokens")]
-        public IActionResult UpdateTokens(AwsAccessSetter model)
+        public async Task<IActionResult> UpdateTokens(AwsAccess model)
         {
-            AwsAccess.AwsAccessKeyID = model.AwsAccessKeyID;
-            AwsAccess.AwsSecreteAccessKey = model.AwsSecreteAccessKey;
-            AwsAccess.Token = model.Token;
-            
+            var awsAccess = _dbContext.AwsAccesses.FirstOrDefault() ?? new AwsAccess();
+           
+            awsAccess.AwsAccessKeyID = model.AwsAccessKeyID;
+            awsAccess.AwsSecreteAccessKey = model.AwsSecreteAccessKey;
+            awsAccess.Token = model.Token;
+
+            if (awsAccess.Id != 0)
+            {
+                _dbContext.Update(awsAccess);
+            }
+            else
+            {
+                _dbContext.Add(awsAccess);
+            }
+            await _dbContext.SaveChangesAsync();
+
             return RedirectToAction("Index");
         }
     }
