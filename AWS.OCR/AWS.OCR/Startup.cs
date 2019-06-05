@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using AWS.OCR.Data;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.HttpOverrides;
 
 namespace AWS.OCR
 {
@@ -43,8 +44,7 @@ namespace AWS.OCR
 
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
 
-           
-            var provider = services.BuildServiceProvider();
+			var provider = services.BuildServiceProvider();
             var dbContext = provider.GetService<ApplicationDbContext>();
             var awsAccess = dbContext.AwsAccesses.FirstOrDefault();
             if(awsAccess == null)
@@ -59,20 +59,21 @@ namespace AWS.OCR
                 };
                 dbContext.Add(awsAccess);
             }
-            else
-            {
-                awsAccess.AwsAccessKeyID = Configuration.GetValue<string>("awsaccessKeyID", null);
-                awsAccess.AwsSecreteAccessKey = Configuration.GetValue<string>("awsSecreteAccessKey", null);
-                awsAccess.Token = Configuration.GetValue<string>("awsToken", null);
-                dbContext.Update(awsAccess);
-            }
             dbContext.SaveChanges();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
-            if (env.IsDevelopment())
+			var forwardingOptions = new ForwardedHeadersOptions()
+			{
+				ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+			};
+			forwardingOptions.KnownNetworks.Clear(); //Loopback by default, this should be temporary
+			forwardingOptions.KnownProxies.Clear(); //Update to include
+			app.UseForwardedHeaders(forwardingOptions);
+
+			if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
                 app.UseDatabaseErrorPage();

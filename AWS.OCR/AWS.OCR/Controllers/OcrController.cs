@@ -58,7 +58,7 @@ namespace AWS.OCR.Controllers
                 return Content("file not selected");
 
             var userId = userManager.GetUserId(HttpContext.User);
-            var fileKey = $"{userId}_{file.FileName}";
+            var fileKey = $"{userId}_{file.FileName}_{Guid.NewGuid().ToString()}";
             using (var stream = file.OpenReadStream())
             {
                 var uploadRequest = new TransferUtilityUploadRequest
@@ -152,7 +152,7 @@ namespace AWS.OCR.Controllers
             }
 
             var response = await awsS3Client.DeleteObjectAsync(_awsAccess.S3BucketName, result.ImageFilenamePath);
-            if(response.HttpStatusCode == System.Net.HttpStatusCode.OK)
+            if(response.HttpStatusCode == System.Net.HttpStatusCode.OK || response.HttpStatusCode == System.Net.HttpStatusCode.NoContent)
             {
                 dbContext.OcrElements.Remove(result);
                 await dbContext.SaveChangesAsync();
