@@ -199,9 +199,23 @@ namespace AWS.OCR.Data.Migrations
                {
                    table.PrimaryKey("PK_AwsAccesses", x => x.Id);
                });
-            /////////
 
-            migrationBuilder.CreateIndex(
+			migrationBuilder.CreateTable(
+				name: "DataProtectionKeys",
+				columns: table => new
+				{
+					Id = table.Column<int>(nullable: false)
+					   .Annotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn),
+					FriendlyName = table.Column<string>(nullable: true),
+					Xml = table.Column<string>(nullable: true),
+				},
+				constraints: table =>
+				{
+					table.PrimaryKey("PK_DataProtectionKeys", x => x.Id);
+				});
+			/////////
+
+			migrationBuilder.CreateIndex(
                 name: "IX_AspNetRoleClaims_RoleId",
                 table: "AspNetRoleClaims",
                 column: "RoleId");

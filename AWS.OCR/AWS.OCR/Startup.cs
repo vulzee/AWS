@@ -13,6 +13,8 @@ using AWS.OCR.Data;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.DataProtection;
+using System.Net;
 
 namespace AWS.OCR
 {
@@ -28,14 +30,23 @@ namespace AWS.OCR
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.Configure<CookiePolicyOptions>(options =>
+			// Configure default endpoint limit
+			// This is the value used by AWS SDK, but by explicitly setting it here
+			// we are hoping to work around a deadlock bug in .NET FX being encountered
+			// See https://github.com/dotnet/corefx/issues/21796
+			ServicePointManager.DefaultConnectionLimit = 50;
+
+			services.Configure<CookiePolicyOptions>(options =>
             {
                 // This lambda determines whether user consent for non-essential cookies is needed for a given request.
                 options.CheckConsentNeeded = context => true;
                 options.MinimumSameSitePolicy = SameSiteMode.None;
             });
 
-            services.AddDbContext<ApplicationDbContext>(options =>
+			services.AddDataProtection()
+				.PersistKeysToDbContext<ApplicationDbContext>();
+
+			services.AddDbContext<ApplicationDbContext>(options =>
               //  options.UseInMemoryDatabase("AWS_OCR"));
                 options.UseSqlServer(
                     Configuration.GetConnectionString("DefaultConnection")));
@@ -65,14 +76,6 @@ namespace AWS.OCR
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
-			var forwardingOptions = new ForwardedHeadersOptions()
-			{
-				ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
-			};
-			forwardingOptions.KnownNetworks.Clear(); //Loopback by default, this should be temporary
-			forwardingOptions.KnownProxies.Clear(); //Update to include
-			app.UseForwardedHeaders(forwardingOptions);
-
 			if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();

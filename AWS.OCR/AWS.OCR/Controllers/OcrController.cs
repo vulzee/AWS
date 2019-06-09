@@ -65,7 +65,7 @@ namespace AWS.OCR.Controllers
                 {
                     InputStream = stream,
                     Key = fileKey,
-                    BucketName = _awsAccess.S3BucketName,
+                    BucketName = _awsAccess.S3BucketName,	
                 };
                 await fileTransferUtility.UploadAsync(uploadRequest);
             }
